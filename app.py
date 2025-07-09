@@ -29,27 +29,11 @@ def transform_cinematic_warm(frame):
     final = cv2.merge([h, np.clip(s, 0, 255), np.clip(v, 0, 255)])
     return cv2.cvtColor(final.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
-def transform_vibrant_anime(frame):
-    smooth = cv2.bilateralFilter(frame, 9, 90, 90)
-    gray = cv2.cvtColor(smooth, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Laplacian(gray, cv2.CV_8U, ksize=3)
-    edges = cv2.cvtColor(255 - edges, cv2.COLOR_GRAY2BGR)
-    hsv = cv2.cvtColor(smooth, cv2.COLOR_BGR2HSV).astype(np.float32)
-    h, s, v = cv2.split(hsv)
-    s *= 1.3
-    v *= 1.15
-    hsv = cv2.merge([h, np.clip(s, 0, 255), np.clip(v, 0, 255)])
-    vibrant = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
-    anime_look = cv2.addWeighted(vibrant, 0.85, edges, 0.15, 0)
-    return anime_look
-
 def get_transform_function(option):
     if option == "🌸 Soft Pastel Anime-Like Style":
         return transform_soft_pastel_anime
     elif option == "🎞️ Cinematic Warm Filter":
         return transform_cinematic_warm
-    elif option == "🌟 Vibrant Anime Style (High-Contrast & Clean)":
-        return transform_vibrant_anime
     else:
         return lambda x: x  # no-op
 
@@ -59,8 +43,7 @@ uploaded_file = st.file_uploader("📤 Upload Video", type=["mp4", "mov", "avi"]
 
 style_option = st.selectbox("🎨 Choose a Style", (
     "🌸 Soft Pastel Anime-Like Style",
-    "🎞️ Cinematic Warm Filter",
-    "🌟 Vibrant Anime Style (High-Contrast & Clean)"
+    "🎞️ Cinematic Warm Filter"
 ))
 
 if uploaded_file:
