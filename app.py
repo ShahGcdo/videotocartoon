@@ -39,13 +39,27 @@ def transform_skeleton_filter(frame):
     skeleton = cv2.cvtColor(inverted, cv2.COLOR_GRAY2BGR)
     return skeleton
 
+def transform_thermal_xray(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 50, 150)
+    colored = cv2.applyColorMap(edges, cv2.COLORMAP_HOT)
+    return colored
+
+def transform_bone_glow(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 40, 120)
+    colored = cv2.applyColorMap(edges, cv2.COLORMAP_BONE)
+    return colored
+
 # ---------------------- Style Selector ----------------------
 
 def get_transform_function(option):
     return {
         "🌸 Soft Pastel Anime-Like Style": transform_soft_pastel_anime,
         "🎞️ Cinematic Warm Filter": transform_cinematic_warm,
-        "💀 Skeleton Filter (X-Ray Style)": transform_skeleton_filter
+        "💀 Skeleton Filter (Edge Outline)": transform_skeleton_filter,
+        "🌡️ Thermal X-Ray (Hot)": transform_thermal_xray,
+        "🧊 Bone Glow (Blue-Cold X-Ray)": transform_bone_glow
     }.get(option, lambda x: x)
 
 # ---------------------- UI ----------------------
@@ -57,7 +71,9 @@ uploaded_file = st.file_uploader("📤 Upload Video", type=["mp4", "mov", "avi"]
 style_option = st.selectbox("🎨 Choose a Style", (
     "🌸 Soft Pastel Anime-Like Style",
     "🎞️ Cinematic Warm Filter",
-    "💀 Skeleton Filter (X-Ray Style)"
+    "💀 Skeleton Filter (Edge Outline)",
+    "🌡️ Thermal X-Ray (Hot)",
+    "🧊 Bone Glow (Blue-Cold X-Ray)"
 ))
 
 # ---------------------- Video Processing ----------------------
