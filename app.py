@@ -8,6 +8,7 @@ from moviepy.editor import VideoFileClip
 st.set_page_config(page_title="Anime Style Video Filters", page_icon="✨")
 st.title("🎨 Anime Video Style Transformation")
 
+# Soft pastel anime filter
 def transform_soft_pastel_anime(frame):
     blur = cv2.bilateralFilter(frame, 9, 75, 75)
     hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV).astype(np.float32)
@@ -18,6 +19,7 @@ def transform_soft_pastel_anime(frame):
     pastel = cv2.cvtColor(pastel.astype(np.uint8), cv2.COLOR_HSV2BGR)
     return pastel
 
+# Cinematic warm filter
 def transform_cinematic_warm(frame):
     lut = np.array([min(255, int(i * 1.1 + 10)) for i in range(256)]).astype("uint8")
     warm = cv2.LUT(frame, lut)
@@ -29,23 +31,41 @@ def transform_cinematic_warm(frame):
     final = cv2.merge([h, np.clip(s, 0, 255), np.clip(v, 0, 255)])
     return cv2.cvtColor(final.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
+# Cartoon filter (human to cartoon)
+def transform_cartoon_style(frame):
+    color = cv2.bilateralFilter(frame, d=9, sigmaColor=250, sigmaSpace=250)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    blur = cv2.medianBlur(gray, 7)
+    edges = cv2.adaptiveThreshold(blur, 255,
+                                   cv2.ADAPTIVE_THRESH_MEAN_C,
+                                   cv2.THRESH_BINARY, blockSize=9, C=2)
+    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+    cartoon = cv2.bitwise_and(color, edges_colored)
+    return cartoon
+
+# Filter chooser
 def get_transform_function(option):
     if option == "🌸 Soft Pastel Anime-Like Style":
         return transform_soft_pastel_anime
     elif option == "🎞️ Cinematic Warm Filter":
         return transform_cinematic_warm
+    elif option == "🧸 Cartoon Filter (Human to Cartoon)":
+        return transform_cartoon_style
     else:
-        return lambda x: x  # no-op
+        return lambda x: x
 
-st.markdown("Upload a video and select your desired anime-style filter.")
+# App UI
+st.markdown("Upload a video and select your desired anime/cartoon-style filter.")
 
 uploaded_file = st.file_uploader("📤 Upload Video", type=["mp4", "mov", "avi"])
 
 style_option = st.selectbox("🎨 Choose a Style", (
     "🌸 Soft Pastel Anime-Like Style",
-    "🎞️ Cinematic Warm Filter"
+    "🎞️ Cinematic Warm Filter",
+    "🧸 Cartoon Filter (Human to Cartoon)"
 ))
 
+# If video is uploaded
 if uploaded_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_input:
         tmp_input.write(uploaded_file.read())
@@ -79,7 +99,7 @@ if uploaded_file:
                 st.download_button(
                     label="💾 Download Transformed Video",
                     data=video_bytes,
-                    file_name="anime_style_video.mp4",
+                    file_name="cartoon_style_video.mp4",
                     mime="video/mp4"
                 )
 
