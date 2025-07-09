@@ -5,8 +5,8 @@ import tempfile
 import time
 from moviepy.editor import VideoFileClip
 
-st.set_page_config(page_title="Anime Style Video Filters", page_icon="✨")
-st.title("🎨 Anime Style Video Transformation")
+st.set_page_config(page_title="Anime + Skeleton Video Filters", page_icon="💀")
+st.title("🎨 Anime & Skeleton Style Video Transformation")
 
 # ---------------------- Filter Functions ----------------------
 
@@ -31,25 +31,13 @@ def transform_cinematic_warm(frame):
     final = cv2.merge([h, np.clip(s, 0, 255), np.clip(v, 0, 255)])
     return cv2.cvtColor(final.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
-def transform_ghibli_style(frame):
-    # Smooth painting-style blur
-    blur = cv2.bilateralFilter(frame, 9, 150, 150)
-
-    # Gentle pastel-like HSV tone shift
-    hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV).astype(np.float32)
-    h, s, v = cv2.split(hsv)
-    s *= 0.6  # soft saturation
-    v *= 1.15  # dreamy brightness
-    hsv = cv2.merge([h, np.clip(s, 0, 255), np.clip(v, 0, 255)])
-    pastel = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
-
-    # Light sketchy outlines
+def transform_skeleton_filter(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Laplacian(gray, cv2.CV_8U, ksize=3)
-    edges_inv = cv2.cvtColor(255 - edges, cv2.COLOR_GRAY2BGR)
-    result = cv2.addWeighted(pastel, 0.9, edges_inv, 0.1, 0)
-
-    return result
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blur, 50, 150)
+    inverted = cv2.bitwise_not(edges)
+    skeleton = cv2.cvtColor(inverted, cv2.COLOR_GRAY2BGR)
+    return skeleton
 
 # ---------------------- Style Selector ----------------------
 
@@ -57,19 +45,19 @@ def get_transform_function(option):
     return {
         "🌸 Soft Pastel Anime-Like Style": transform_soft_pastel_anime,
         "🎞️ Cinematic Warm Filter": transform_cinematic_warm,
-        "🌾 Ghibli-Inspired Dreamy Look": transform_ghibli_style
+        "💀 Skeleton Filter (X-Ray Style)": transform_skeleton_filter
     }.get(option, lambda x: x)
 
 # ---------------------- UI ----------------------
 
-st.markdown("Upload a video and choose your desired anime-style filter:")
+st.markdown("Upload a video and choose your desired style filter:")
 
 uploaded_file = st.file_uploader("📤 Upload Video", type=["mp4", "mov", "avi"])
 
 style_option = st.selectbox("🎨 Choose a Style", (
     "🌸 Soft Pastel Anime-Like Style",
     "🎞️ Cinematic Warm Filter",
-    "🌾 Ghibli-Inspired Dreamy Look"
+    "💀 Skeleton Filter (X-Ray Style)"
 ))
 
 # ---------------------- Video Processing ----------------------
@@ -107,7 +95,7 @@ if uploaded_file:
                 st.download_button(
                     label="💾 Download Transformed Video",
                     data=video_bytes,
-                    file_name="ghibli_style_video.mp4",
+                    file_name="styled_video.mp4",
                     mime="video/mp4"
                 )
 
