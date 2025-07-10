@@ -116,24 +116,14 @@ if uploaded_files and len(uploaded_files) == 3:
 
         merged_path = f"{tmpdir}/merged_output.mp4"
 
-        # FFmpeg watermark movement from right to left in 8 seconds, looped
         command = f"""
-        ffmpeg -y -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} -filter_complex "
-        [0:v]scale=640:1080[v0];
-        [1:v]scale=640:1080[v1];
-        [2:v]scale=640:1080[v2];
-        [v0][v1][v2]hstack=inputs=3[stacked];
-        [stacked]drawtext=
-        text='@USMIKASHMIRI':
-        fontcolor=white@0.4:
-        fontsize=52:
-        font='DejaVuSans-Bold':
-        x='w - mod(t*main_w/8\, w+text_w)':
-        y='h - text_h - 160':
-        enable='1':
-        shadowcolor=black:
-        shadowx=2:
-        shadowy=2[outv]" -map "[outv]" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p {merged_path}
+        ffmpeg -y -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} -filter_complex \
+        \"[0:v]scale=640:-1,pad=640:1080:(ow-iw)/2:(oh-ih)/2:black[v0]; \
+        [1:v]scale=640:-1,pad=640:1080:(ow-iw)/2:(oh-ih)/2:black[v1]; \
+        [2:v]scale=640:-1,pad=640:1080:(ow-iw)/2:(oh-ih)/2:black[v2]; \
+        [v0][v1][v2]hstack=inputs=3[stacked]; \
+        [stacked]drawtext=text='@USMIKASHMIRI':fontcolor=white@0.4:fontsize=52:font='DejaVuSans-Bold':x='w - mod(t*main_w/8\, w+text_w)':y='h - text_h - 160':enable='1':shadowcolor=black:shadowx=2:shadowy=2[outv]\" \
+        -map \"[outv]\" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p {merged_path}
         """
 
         result = os.system(command)
