@@ -5,7 +5,6 @@ import tempfile
 import time
 from moviepy.editor import VideoFileClip
 import os
-import subprocess
 
 st.set_page_config(page_title="Anime + Cinematic Video Filters", page_icon="🎨")
 st.title("🎨 Anime & Cinematic Style Video Transformation")
@@ -41,7 +40,7 @@ def get_transform_function(option):
         "🎞️ Cinematic Warm Filter": transform_cinematic_warm,
     }.get(option, lambda x: x)
 
-# ---------------------- Single Video Filter UI ----------------------
+# ---------------------- UI ----------------------
 
 st.markdown("## 🎨 Apply Style Filter to a Single Video")
 
@@ -52,7 +51,7 @@ style_option = st.selectbox("🎨 Choose a Style", (
     "🎞️ Cinematic Warm Filter"
 ), key="style_single")
 
-# ---------------------- Process Single Video ----------------------
+# ---------------------- Single Video Processing ----------------------
 
 if uploaded_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_input:
@@ -71,26 +70,33 @@ if uploaded_file:
                 output_path = tmp_output.name
                 transformed_clip.write_videofile(output_path, codec="libx264", audio_codec="aac", verbose=False, logger=None)
 
-        st.success(f"✅ Done in {time.time() - start_time:.2f} seconds")
+        end_time = time.time()
+        elapsed = end_time - start_time
+        st.info(f"✅ Completed in {elapsed:.2f} seconds")
 
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("🎥 Original")
+            st.subheader("🎥 Original Video")
             st.video(input_path)
         with col2:
-            st.subheader("🎨 Styled")
+            st.subheader("🧑‍🎨 Styled Video")
             with open(output_path, "rb") as f:
                 video_bytes = f.read()
                 st.video(video_bytes)
-                st.download_button("💾 Download Styled Video", video_bytes, "styled_video.mp4", mime="video/mp4")
+                st.download_button(
+                    label="💾 Download Styled Video",
+                    data=video_bytes,
+                    file_name="styled_video.mp4",
+                    mime="video/mp4"
+                )
 
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
-# ---------------------- Merge + Style 3 Shorts ----------------------
+# ---------------------- Merge + Style ----------------------
 
 st.markdown("---")
-st.markdown("## 🎬 Merge 3 Shorts into 4K Video + Style + Watermark")
+st.markdown("## 🎬 Merge 3 Vertical Shorts into One Landscape Video (16:9) + Apply Style")
 
 uploaded_files = st.file_uploader("📤 Upload 3 Vertical Videos", type=["mp4"], accept_multiple_files=True, key="merge")
 
@@ -103,29 +109,29 @@ if uploaded_files and len(uploaded_files) == 3:
     with tempfile.TemporaryDirectory() as tmpdir:
         file_paths = []
         for i, file in enumerate(uploaded_files):
-            path = f"{tmpdir}/input{i}.mp4"
-            with open(path, "wb") as f:
+            file_path = f"{tmpdir}/input{i}.mp4"
+            with open(file_path, "wb") as f:
                 f.write(file.read())
-            file_paths.append(path)
+            file_paths.append(file_path)
 
-        merged_path = f"{tmpdir}/merged_4k.mp4"
-        styled_path = f"{tmpdir}/styled_output.mp4"
+        merged_path = f"{tmpdir}/merged_output.mp4"
 
-        st.spinner("🔄 Merging and adding watermark...")
+        st.spinner("🔄 Merging videos...")
 
+        # ✅ Fixed FFmpeg command
         ffmpeg_command = f'''
         ffmpeg -y -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} -filter_complex "
-        [0:v]scale=1280:2160[v0];
-        [1:v]scale=1280:2160[v1];
-        [2:v]scale=1280:2160[v2];
+        [0:v]scale=640:1080[v0];
+        [1:v]scale=640:1080[v1];
+        [2:v]scale=640:1080[v2];
         [v0][v1][v2]hstack=inputs=3[stacked];
-        [stacked]drawtext=text='Usmikashmiri':x=w-tw-40:y=h-th-40:fontsize=48:fontcolor=white:shadowcolor=black:shadowx=2:shadowy=2
-        " -map "[stacked]" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p "{merged_path}"
+        [stacked]drawtext=text='Usmikashmiri':x=w-tw-40:y=h-th-40:fontsize=48:fontcolor=white:shadowcolor=black:shadowx=2:shadowy=2[outv]
+        " -map "[outv]" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p "{merged_path}"
         '''
-        result = subprocess.run(ffmpeg_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = os.system(ffmpeg_command)
 
-        if result.returncode == 0:
-            st.success("✅ Merged 4K video with watermark created!")
+        if result == 0:
+            st.success("✅ Merged video created!")
 
             col1, col2 = st.columns(2)
             with col1:
@@ -135,20 +141,26 @@ if uploaded_files and len(uploaded_files) == 3:
             try:
                 transform_func = get_transform_function(style_merge)
                 clip = VideoFileClip(merged_path)
-                styled_clip = clip.fl_image(transform_func)
-                styled_clip.write_videofile(styled_path, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+                transformed_merged = clip.fl_image(transform_func)
+
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as styled_output:
+                    styled_path = styled_output.name
+                    transformed_merged.write_videofile(styled_path, codec="libx264", audio_codec="aac", verbose=False, logger=None)
 
                 with col2:
-                    st.subheader("🎨 Styled Merged Video (After)")
+                    st.subheader("🧑‍🎨 Styled Merged Video (After)")
                     with open(styled_path, "rb") as f:
                         styled_bytes = f.read()
                         st.video(styled_bytes)
-                        st.download_button("💾 Download Styled 4K Video", styled_bytes, "styled_merged_4k.mp4", mime="video/mp4")
+                        st.download_button(
+                            label="💾 Download Styled Merged Video",
+                            data=styled_bytes,
+                            file_name="styled_merged_16x9.mp4",
+                            mime="video/mp4"
+                        )
             except Exception as e:
-                st.error(f"❌ Styling failed: {e}")
+                st.error(f"❌ Error styling merged video: {e}")
         else:
-            st.error("❌ FFmpeg merge failed")
-            st.text(result.stderr)
-
+            st.error("❌ FFmpeg merge failed. Please check the input videos.")
 elif uploaded_files and len(uploaded_files) != 3:
     st.warning("⚠️ Please upload exactly 3 vertical videos.")
