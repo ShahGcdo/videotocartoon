@@ -32,6 +32,8 @@ def transform_cinematic_warm(frame):
     final = cv2.merge([h, np.clip(s, 0, 255), np.clip(v, 0, 255)])
     return cv2.cvtColor(final.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
+# ---------------------- Style Selector ----------------------
+
 def get_transform_function(option):
     return {
         "🌸 Soft Pastel Anime-Like Style": transform_soft_pastel_anime,
@@ -49,6 +51,8 @@ style_option = st.selectbox("🎨 Choose a Style", (
     "🎞️ Cinematic Warm Filter"
 ), key="style_single")
 
+# ---------------------- Single Video Processing ----------------------
+
 if uploaded_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_input:
         tmp_input.write(uploaded_file.read())
@@ -59,7 +63,6 @@ if uploaded_file:
 
         start_time = time.time()
         with st.spinner("✨ Applying style transformation... Please wait."):
-
             clip = VideoFileClip(input_path)
             transformed_clip = clip.fl_image(transform_func)
 
@@ -113,7 +116,7 @@ if uploaded_files and len(uploaded_files) == 3:
 
         merged_path = f"{tmpdir}/merged_output.mp4"
 
-        # FFmpeg command to merge videos and animate watermark text
+        # FFmpeg watermark movement from right to left in 8 seconds, looped
         command = f"""
         ffmpeg -y -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} -filter_complex "
         [0:v]scale=640:1080[v0];
@@ -125,9 +128,9 @@ if uploaded_files and len(uploaded_files) == 3:
         fontcolor=white@0.4:
         fontsize=52:
         font='DejaVuSans-Bold':
-        x='w - mod(t*100\\, w+text_w)':
+        x='w - mod(t*main_w/8\, w+text_w)':
         y='h - text_h - 160':
-        enable='lt(mod(t\\,8)\\,8)':
+        enable='1':
         shadowcolor=black:
         shadowx=2:
         shadowy=2[outv]" -map "[outv]" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p {merged_path}
