@@ -44,12 +44,12 @@ def get_transform_function(option):
 
 st.markdown("## 🎨 Apply Style Filter to a Single Video")
 
-uploaded_file = st.file_uploader("📤 Upload a Video", type=["mp4", "mov", "avi"])
+uploaded_file = st.file_uploader("📤 Upload a Video", type=["mp4", "mov", "avi"], key="single")
 
 style_option = st.selectbox("🎨 Choose a Style", (
     "🌸 Soft Pastel Anime-Like Style",
     "🎞️ Cinematic Warm Filter"
-))
+), key="style_single")
 
 # ---------------------- Video Filter Processing ----------------------
 
@@ -96,9 +96,14 @@ if uploaded_file:
 # ---------------------- 3 Video Merge Feature ----------------------
 
 st.markdown("---")
-st.markdown("## 🎬 Merge 3 Vertical Shorts into One Landscape Video (16:9)")
+st.markdown("## 🎬 Merge 3 Vertical Shorts into One Landscape Video (16:9) + Apply Style")
 
-uploaded_files = st.file_uploader("📤 Upload 3 Vertical Videos", type=["mp4"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("📤 Upload 3 Vertical Videos", type=["mp4"], accept_multiple_files=True, key="merge")
+
+style_merge = st.selectbox("🎨 Apply Style to Merged Video", (
+    "🌸 Soft Pastel Anime-Like Style",
+    "🎞️ Cinematic Warm Filter"
+), key="style_merge")
 
 if uploaded_files and len(uploaded_files) == 3:
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -109,8 +114,8 @@ if uploaded_files and len(uploaded_files) == 3:
                 f.write(file.read())
             file_paths.append(file_path)
 
-        # Output file path
-        output_path = f"{tmpdir}/merged_output.mp4"
+        # Merge Output
+        merged_path = f"{tmpdir}/merged_output.mp4"
 
         st.spinner("🔄 Merging videos...")
 
@@ -118,17 +123,41 @@ if uploaded_files and len(uploaded_files) == 3:
         command = f"""
         ffmpeg -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} \
         -filter_complex "[0:v]scale=640:1080[v0]; [1:v]scale=640:1080[v1]; [2:v]scale=640:1080[v2]; [v0][v1][v2]hstack=inputs=3[outv]" \
-        -map "[outv]" -c:v libx264 -preset fast -crf 23 -y {output_path}
+        -map "[outv]" -c:v libx264 -preset fast -crf 23 -y {merged_path}
         """
 
         result = os.system(command)
 
         if result == 0:
             st.success("✅ Merged video created!")
-            st.video(output_path)
-            with open(output_path, "rb") as f:
-                st.download_button("💾 Download 16:9 Merged Video", f.read(), "merged_16x9.mp4", mime="video/mp4")
+
+            st.subheader("🎬 Preview Merged Video")
+            st.video(merged_path)
+
+            # Apply Style to Merged Output
+            st.info("🎨 Applying selected style to merged video...")
+            try:
+                transform_func = get_transform_function(style_merge)
+                clip = VideoFileClip(merged_path)
+                transformed_merged = clip.fl_image(transform_func)
+
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as styled_output:
+                    styled_path = styled_output.name
+                    transformed_merged.write_videofile(styled_path, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+
+                st.subheader("🧑‍🎨 Styled Merged Video")
+                with open(styled_path, "rb") as f:
+                    styled_bytes = f.read()
+                    st.video(styled_bytes)
+                    st.download_button(
+                        label="💾 Download Styled Merged Video",
+                        data=styled_bytes,
+                        file_name="styled_merged_16x9.mp4",
+                        mime="video/mp4"
+                    )
+            except Exception as e:
+                st.error(f"❌ Error styling merged video: {e}")
         else:
-            st.error("❌ Failed to merge videos. Please check the input files.")
+            st.error("❌ Failed to merge videos. Please check input files.")
 elif uploaded_files and len(uploaded_files) != 3:
     st.warning("⚠️ Please upload exactly 3 vertical videos.")
