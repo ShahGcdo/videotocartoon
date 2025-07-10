@@ -116,7 +116,7 @@ if uploaded_files and len(uploaded_files) == 3:
 
         merged_path = f"{tmpdir}/merged_output.mp4"
 
-        # FFmpeg command to merge and animated watermark
+        # FFmpeg command to merge and animate watermark
         command = f"""
         ffmpeg -y -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} -filter_complex "
         [0:v]scale=640:1080[v0];
@@ -124,8 +124,8 @@ if uploaded_files and len(uploaded_files) == 3:
         [2:v]scale=640:1080[v2];
         [v0][v1][v2]hstack=inputs=3[stacked];
         [stacked]drawtext=text='@USMIKASHMIRI':fontcolor=white@0.5:fontsize=52:font='DejaVuSans-Bold':
-        x='w - mod(t*150\\, w+text_w)':y='h/2 - text_h/2':
-        shadowcolor=black:shadowx=2:shadowy=2[outv]
+        x='mod(w - mod(t\\,8)*w/8\\, w+text_w)':y='h - text_h - 80':
+        enable='gt(t\\,0)':shadowcolor=black:shadowx=2:shadowy=2[outv]
         " -map "[outv]" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p {merged_path}
         """
 
