@@ -3,8 +3,8 @@ import cv2
 import numpy as np
 import tempfile
 import time
-from moviepy.editor import VideoFileClip
 import os
+from moviepy.editor import VideoFileClip
 
 st.set_page_config(page_title="Anime + Cinematic Video Filters", page_icon="🎨")
 st.title("🎨 Anime & Cinematic Style Video Transformation")
@@ -40,7 +40,7 @@ def get_transform_function(option):
         "🎞️ Cinematic Warm Filter": transform_cinematic_warm,
     }.get(option, lambda x: x)
 
-# ---------------------- UI ----------------------
+# ---------------------- UI for Single Video ----------------------
 
 st.markdown("## 🎨 Apply Style Filter to a Single Video")
 
@@ -93,7 +93,7 @@ if uploaded_file:
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
-# ---------------------- Merge + Style ----------------------
+# ---------------------- 3 Video Merge + Style ----------------------
 
 st.markdown("---")
 st.markdown("## 🎬 Merge 3 Vertical Shorts into One Landscape Video (16:9) + Apply Style")
@@ -116,19 +116,18 @@ if uploaded_files and len(uploaded_files) == 3:
 
         merged_path = f"{tmpdir}/merged_output.mp4"
 
-        st.spinner("🔄 Merging videos...")
-
-        # ✅ Fixed FFmpeg command
-        ffmpeg_command = f'''
+        # FFmpeg command to merge and watermark
+        command = f"""
         ffmpeg -y -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} -filter_complex "
         [0:v]scale=640:1080[v0];
         [1:v]scale=640:1080[v1];
         [2:v]scale=640:1080[v2];
         [v0][v1][v2]hstack=inputs=3[stacked];
-        [stacked]drawtext=text='Usmikashmiri':x=w-tw-40:y=h-th-40:fontsize=48:fontcolor=white:shadowcolor=black:shadowx=2:shadowy=2[outv]
-        " -map "[outv]" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p "{merged_path}"
-        '''
-        result = os.system(ffmpeg_command)
+        [stacked]drawtext=text='Usmikashmiri':x='(w-text_w)/2 + 50*sin(t*2)':y='h/12':fontsize=48:fontcolor=white:shadowcolor=black:shadowx=2:shadowy=2[outv]
+        " -map "[outv]" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p {merged_path}
+        """
+
+        result = os.system(command)
 
         if result == 0:
             st.success("✅ Merged video created!")
@@ -161,6 +160,6 @@ if uploaded_files and len(uploaded_files) == 3:
             except Exception as e:
                 st.error(f"❌ Error styling merged video: {e}")
         else:
-            st.error("❌ FFmpeg merge failed. Please check the input videos.")
+            st.error("❌ FFmpeg merge failed.")
 elif uploaded_files and len(uploaded_files) != 3:
     st.warning("⚠️ Please upload exactly 3 vertical videos.")
