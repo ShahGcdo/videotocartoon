@@ -96,61 +96,16 @@ style_merge = st.selectbox("🎨 Apply Style to Merged Video", (
     "🎞️ Cinematic Warm Filter"
 ), key="style_merge")
 
-if uploaded_files and len(uploaded_files) == 3:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        file_paths = []
-        for i, file in enumerate(uploaded_files):
-            path = os.path.join(tmpdir, f"input{i}.mp4")
-            with open(path, "wb") as f:
-                f.write(file.read())
-            file_paths.append(path)
-
-        merged_path = os.path.join(tmpdir, "merged.mp4")
-
-        command = f"""
-        ffmpeg -y -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} -filter_complex "
-        [0:v]scale=640:1080[v0];
-        [1:v]scale=640:1080[v1];
-        [2:v]scale=640:1080[v2];
-        [v0][v1][v2]hstack=inputs=3[stacked];
-        [stacked]drawtext=text='@USMIKASHMIRI':x='w-(t*100)%w':y='h-150':fontsize=40:fontcolor=white@0.3:shadowcolor=black:shadowx=2:shadowy=2[outv]" -map "[outv]" -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p {merged_path}
-        """
-        result = os.system(command)
-
-        if result == 0:
-            st.success("✅ Merged video created!")
-
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("🎥 Before Style")
-                st.video(merged_path)
-
-            try:
-                transform_func = get_transform_function(style_merge)
-                clip = VideoFileClip(merged_path)
-                styled_clip = clip.fl_image(transform_func)
-
-                styled_path = os.path.join(tmpdir, "styled_merged.mp4")
-                styled_clip.write_videofile(styled_path, codec="libx264", audio_codec="aac", verbose=False, logger=None)
-
-                with col2:
-                    st.subheader("🧑‍🎨 After Style")
-                    with open(styled_path, "rb") as f:
-                        st.video(f.read())
-                        st.download_button("💾 Download Styled Video", f, "styled_merged.mp4", mime="video/mp4")
-
-            except Exception as e:
-                st.error(f"❌ Error applying style: {e}")
-        else:
-            st.error("❌ FFmpeg merge failed.")
-elif uploaded_files and len(uploaded_files) != 3:
-    st.warning("⚠️ Please upload exactly 3 vertical videos.")
-
 # ---------------------- Feature 3: Sequential Side-by-Side with Paused Neighbors ----------------------
 st.markdown("---")
-st.header("🕒 Play 3 Vertical Shorts in One Landscape Frame (Side-by-Side with Only One Playing")
+st.header("🕒 Play 3 Vertical Shorts in One Landscape Frame (Side-by-Side with Only One Playing)")
 
 uploaded_seq = st.file_uploader("📤 Upload 3 Videos (for sequential visible side-by-side playback)", type=["mp4"], accept_multiple_files=True, key="sequential")
+style_seq = st.selectbox("🎨 Apply Style to Sequential Video", (
+    "None",
+    "🌸 Soft Pastel Anime-Like Style",
+    "🎞️ Cinematic Warm Filter"
+), key="style_sequential")
 
 if uploaded_seq and len(uploaded_seq) == 3:
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -162,18 +117,23 @@ if uploaded_seq and len(uploaded_seq) == 3:
             paths.append(p)
 
         try:
+            transform_func = get_transform_function(style_seq) if style_seq != "None" else lambda x: x
+
             clips = []
             for i in range(3):
-                main = VideoFileClip(paths[i]).resize(height=1080).set_position((640 * i, 0))
-                freeze_1 = ImageClip(VideoFileClip(paths[0]).get_frame(0)).resize(height=1080).set_duration(main.duration).set_position((0, 0))
-                freeze_2 = ImageClip(VideoFileClip(paths[1]).get_frame(0)).resize(height=1080).set_duration(main.duration).set_position((640, 0))
-                freeze_3 = ImageClip(VideoFileClip(paths[2]).get_frame(0)).resize(height=1080).set_duration(main.duration).set_position((1280, 0))
-                bg = ColorClip((1920, 1080), color=(0, 0, 0)).set_duration(main.duration)
+                main_clip = VideoFileClip(paths[i]).fl_image(transform_func).resize(height=1080)
+                freeze_1 = ImageClip(transform_func(VideoFileClip(paths[0]).get_frame(0))).resize(height=1080).set_duration(main_clip.duration).set_position((0, 0)).set_opacity(0.3 if i != 0 else 1)
+                freeze_2 = ImageClip(transform_func(VideoFileClip(paths[1]).get_frame(0))).resize(height=1080).set_duration(main_clip.duration).set_position((640, 0)).set_opacity(0.3 if i != 1 else 1)
+                freeze_3 = ImageClip(transform_func(VideoFileClip(paths[2]).get_frame(0))).resize(height=1080).set_duration(main_clip.duration).set_position((1280, 0)).set_opacity(0.3 if i != 2 else 1)
+
+                bg = ColorClip((1920, 1080), color=(0, 0, 0)).set_duration(main_clip.duration)
+                playing = main_clip.set_position((640 * i, 0))
+
                 combo = CompositeVideoClip([
                     bg,
-                    freeze_1 if i != 0 else main,
-                    freeze_2 if i != 1 else main,
-                    freeze_3 if i != 2 else main
+                    freeze_1 if i != 0 else playing,
+                    freeze_2 if i != 1 else playing,
+                    freeze_3 if i != 2 else playing
                 ])
                 clips.append(combo)
 
