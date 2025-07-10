@@ -76,15 +76,15 @@ if uploaded_file:
 
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("🎥 Original")
+            st.subheader("🎥 Original Video")
             st.video(input_path)
         with col2:
-            st.subheader("🧑‍🎨 Transformed")
+            st.subheader("🧑‍🎨 Styled Video")
             with open(output_path, "rb") as f:
                 video_bytes = f.read()
                 st.video(video_bytes)
                 st.download_button(
-                    label="💾 Download Transformed Video",
+                    label="💾 Download Styled Video",
                     data=video_bytes,
                     file_name="styled_video.mp4",
                     mime="video/mp4"
@@ -93,7 +93,7 @@ if uploaded_file:
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
-# ---------------------- 3 Video Merge Feature ----------------------
+# ---------------------- 3 Video Merge + Filter Feature ----------------------
 
 st.markdown("---")
 st.markdown("## 🎬 Merge 3 Vertical Shorts into One Landscape Video (16:9) + Apply Style")
@@ -114,12 +114,12 @@ if uploaded_files and len(uploaded_files) == 3:
                 f.write(file.read())
             file_paths.append(file_path)
 
-        # Merge Output
+        # Merge Output Path
         merged_path = f"{tmpdir}/merged_output.mp4"
 
         st.spinner("🔄 Merging videos...")
 
-        # FFmpeg command to stack videos horizontally
+        # FFmpeg command to horizontally stack scaled videos
         command = f"""
         ffmpeg -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} \
         -filter_complex "[0:v]scale=640:1080[v0]; [1:v]scale=640:1080[v1]; [2:v]scale=640:1080[v2]; [v0][v1][v2]hstack=inputs=3[outv]" \
@@ -131,11 +131,11 @@ if uploaded_files and len(uploaded_files) == 3:
         if result == 0:
             st.success("✅ Merged video created!")
 
-            st.subheader("🎬 Preview Merged Video")
-            st.video(merged_path)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("🎥 Merged Video (Before Style)")
+                st.video(merged_path)
 
-            # Apply Style to Merged Output
-            st.info("🎨 Applying selected style to merged video...")
             try:
                 transform_func = get_transform_function(style_merge)
                 clip = VideoFileClip(merged_path)
@@ -145,16 +145,17 @@ if uploaded_files and len(uploaded_files) == 3:
                     styled_path = styled_output.name
                     transformed_merged.write_videofile(styled_path, codec="libx264", audio_codec="aac", verbose=False, logger=None)
 
-                st.subheader("🧑‍🎨 Styled Merged Video")
-                with open(styled_path, "rb") as f:
-                    styled_bytes = f.read()
-                    st.video(styled_bytes)
-                    st.download_button(
-                        label="💾 Download Styled Merged Video",
-                        data=styled_bytes,
-                        file_name="styled_merged_16x9.mp4",
-                        mime="video/mp4"
-                    )
+                with col2:
+                    st.subheader("🧑‍🎨 Styled Merged Video (After)")
+                    with open(styled_path, "rb") as f:
+                        styled_bytes = f.read()
+                        st.video(styled_bytes)
+                        st.download_button(
+                            label="💾 Download Styled Merged Video",
+                            data=styled_bytes,
+                            file_name="styled_merged_16x9.mp4",
+                            mime="video/mp4"
+                        )
             except Exception as e:
                 st.error(f"❌ Error styling merged video: {e}")
         else:
