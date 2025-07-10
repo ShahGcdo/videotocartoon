@@ -3,8 +3,8 @@ import cv2
 import numpy as np
 import tempfile
 import time
-import os
 from moviepy.editor import VideoFileClip
+import os
 
 st.set_page_config(page_title="Anime + Cinematic Video Filters", page_icon="🎨")
 st.title("🎨 Anime & Cinematic Style Video Transformation")
@@ -40,7 +40,7 @@ def get_transform_function(option):
         "🎞️ Cinematic Warm Filter": transform_cinematic_warm,
     }.get(option, lambda x: x)
 
-# ---------------------- UI for Single Video ----------------------
+# ---------------------- UI ----------------------
 
 st.markdown("## 🎨 Apply Style Filter to a Single Video")
 
@@ -51,7 +51,7 @@ style_option = st.selectbox("🎨 Choose a Style", (
     "🎞️ Cinematic Warm Filter"
 ), key="style_single")
 
-# ---------------------- Single Video Processing ----------------------
+# ---------------------- Video Filter Processing ----------------------
 
 if uploaded_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_input:
@@ -68,7 +68,7 @@ if uploaded_file:
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_output:
                 output_path = tmp_output.name
-                transformed_clip.write_videofile(output_path, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+                transformed_clip.write_videofile(output_path, codec="libx264", audio_codec="aac", preset="slow", verbose=False, logger=None)
 
         end_time = time.time()
         elapsed = end_time - start_time
@@ -93,7 +93,7 @@ if uploaded_file:
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
-# ---------------------- 3 Video Merge + Style ----------------------
+# ---------------------- 3 Video Merge + Filter Feature ----------------------
 
 st.markdown("---")
 st.markdown("## 🎬 Merge 3 Vertical Shorts into One Landscape Video (16:9) + Apply Style")
@@ -116,14 +116,16 @@ if uploaded_files and len(uploaded_files) == 3:
 
         merged_path = f"{tmpdir}/merged_output.mp4"
 
-        # FFmpeg command to merge and watermark
+        st.spinner("🔄 Merging videos...")
+
+        # FFmpeg command with horizontal stack and scrolling watermark
         command = f"""
         ffmpeg -y -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} -filter_complex "
         [0:v]scale=640:1080[v0];
         [1:v]scale=640:1080[v1];
         [2:v]scale=640:1080[v2];
         [v0][v1][v2]hstack=inputs=3[stacked];
-        [stacked]drawtext=text='Usmikashmiri':x='(w-text_w)/2 + 50*sin(t*2)':y='h/12':fontsize=48:fontcolor=white:shadowcolor=black:shadowx=2:shadowy=2[outv]
+        [stacked]drawtext=text='@USMIKASHMIRI':fontcolor=white:fontsize=48:x='w-mod(t*100\\,w+text_w)':y=h-100:shadowcolor=black:shadowx=2:shadowy=2[outv]
         " -map "[outv]" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p {merged_path}
         """
 
@@ -144,7 +146,7 @@ if uploaded_files and len(uploaded_files) == 3:
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as styled_output:
                     styled_path = styled_output.name
-                    transformed_merged.write_videofile(styled_path, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+                    transformed_merged.write_videofile(styled_path, codec="libx264", audio_codec="aac", preset="slow", verbose=False, logger=None)
 
                 with col2:
                     st.subheader("🧑‍🎨 Styled Merged Video (After)")
