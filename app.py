@@ -4,9 +4,10 @@ import numpy as np
 import tempfile
 import time
 from moviepy.editor import VideoFileClip
+import os
 
-st.set_page_config(page_title="Anime + Skeleton Video Filters", page_icon="💀")
-st.title("🎨 Anime & Skeleton Style Video Transformation")
+st.set_page_config(page_title="Anime + Cinematic Video Filters", page_icon="🎨")
+st.title("🎨 Anime & Cinematic Style Video Transformation")
 
 # ---------------------- Filter Functions ----------------------
 
@@ -31,52 +32,26 @@ def transform_cinematic_warm(frame):
     final = cv2.merge([h, np.clip(s, 0, 255), np.clip(v, 0, 255)])
     return cv2.cvtColor(final.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
-def transform_skeleton_filter(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blur, 50, 150)
-    inverted = cv2.bitwise_not(edges)
-    skeleton = cv2.cvtColor(inverted, cv2.COLOR_GRAY2BGR)
-    return skeleton
-
-def transform_thermal_xray(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 50, 150)
-    colored = cv2.applyColorMap(edges, cv2.COLORMAP_HOT)
-    return colored
-
-def transform_bone_glow(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 40, 120)
-    colored = cv2.applyColorMap(edges, cv2.COLORMAP_BONE)
-    return colored
-
 # ---------------------- Style Selector ----------------------
 
 def get_transform_function(option):
     return {
         "🌸 Soft Pastel Anime-Like Style": transform_soft_pastel_anime,
         "🎞️ Cinematic Warm Filter": transform_cinematic_warm,
-        "💀 Skeleton Filter (Edge Outline)": transform_skeleton_filter,
-        "🌡️ Thermal X-Ray (Hot)": transform_thermal_xray,
-        "🧊 Bone Glow (Blue-Cold X-Ray)": transform_bone_glow
     }.get(option, lambda x: x)
 
 # ---------------------- UI ----------------------
 
-st.markdown("Upload a video and choose your desired style filter:")
+st.markdown("## 🎨 Apply Style Filter to a Single Video")
 
-uploaded_file = st.file_uploader("📤 Upload Video", type=["mp4", "mov", "avi"])
+uploaded_file = st.file_uploader("📤 Upload a Video", type=["mp4", "mov", "avi"])
 
 style_option = st.selectbox("🎨 Choose a Style", (
     "🌸 Soft Pastel Anime-Like Style",
-    "🎞️ Cinematic Warm Filter",
-    "💀 Skeleton Filter (Edge Outline)",
-    "🌡️ Thermal X-Ray (Hot)",
-    "🧊 Bone Glow (Blue-Cold X-Ray)"
+    "🎞️ Cinematic Warm Filter"
 ))
 
-# ---------------------- Video Processing ----------------------
+# ---------------------- Video Filter Processing ----------------------
 
 if uploaded_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_input:
@@ -117,3 +92,43 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"❌ Error: {e}")
+
+# ---------------------- 3 Video Merge Feature ----------------------
+
+st.markdown("---")
+st.markdown("## 🎬 Merge 3 Vertical Shorts into One Landscape Video (16:9)")
+
+uploaded_files = st.file_uploader("📤 Upload 3 Vertical Videos", type=["mp4"], accept_multiple_files=True)
+
+if uploaded_files and len(uploaded_files) == 3:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        file_paths = []
+        for i, file in enumerate(uploaded_files):
+            file_path = f"{tmpdir}/input{i}.mp4"
+            with open(file_path, "wb") as f:
+                f.write(file.read())
+            file_paths.append(file_path)
+
+        # Output file path
+        output_path = f"{tmpdir}/merged_output.mp4"
+
+        st.spinner("🔄 Merging videos...")
+
+        # FFmpeg command to stack videos horizontally
+        command = f"""
+        ffmpeg -i {file_paths[0]} -i {file_paths[1]} -i {file_paths[2]} \
+        -filter_complex "[0:v]scale=640:1080[v0]; [1:v]scale=640:1080[v1]; [2:v]scale=640:1080[v2]; [v0][v1][v2]hstack=inputs=3[outv]" \
+        -map "[outv]" -c:v libx264 -preset fast -crf 23 -y {output_path}
+        """
+
+        result = os.system(command)
+
+        if result == 0:
+            st.success("✅ Merged video created!")
+            st.video(output_path)
+            with open(output_path, "rb") as f:
+                st.download_button("💾 Download 16:9 Merged Video", f.read(), "merged_16x9.mp4", mime="video/mp4")
+        else:
+            st.error("❌ Failed to merge videos. Please check the input files.")
+elif uploaded_files and len(uploaded_files) != 3:
+    st.warning("⚠️ Please upload exactly 3 vertical videos.")
