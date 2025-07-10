@@ -46,4 +46,5 @@ uploaded_file = st.file_uploader("📤 Upload a Video", type=["mp4", "mov", "avi
 style_option = st.selectbox("🎨 Choose a Style", (
     "🌸 Soft Pastel Anime-Like Style",
     "🎞️ Cinematic Warm Filter"
-), key="style_singl_
+), key="style_single")
+
