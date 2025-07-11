@@ -248,6 +248,7 @@ if uploaded_thumb_files and len(uploaded_thumb_files) == 3:
         timestamps.append(ts)
 
     if st.button("🧩 Generate Combined Thumbnail"):
+        st.info("📸 Extracting and combining thumbnails...")
         with tempfile.TemporaryDirectory() as tmpdir:
             images = []
             for idx, file in enumerate(uploaded_thumb_files):
@@ -258,7 +259,7 @@ if uploaded_thumb_files and len(uploaded_thumb_files) == 3:
                 clip = VideoFileClip(path)
                 frame = clip.get_frame(timestamps[idx])
                 img = Image.fromarray(frame)
-                img = img.resize((426, 720))
+                img = img.resize((426, 720))  # Resize to 1/3 width of 1280, full height
                 images.append(img)
                 clip.close()
 
@@ -266,10 +267,17 @@ if uploaded_thumb_files and len(uploaded_thumb_files) == 3:
             for i, img in enumerate(images):
                 combined.paste(img, (i * 426, 0))
 
-            st.session_state.thumbnail_path = os.path.join(tmpdir, "combined.jpg")
-            combined.save(st.session_state.thumbnail_path)
+            # Save combined image to bytes
+            buffer = BytesIO()
+            combined.save(buffer, format="JPEG")
+            buffer.seek(0)
+            st.session_state.thumbnail_bytes = buffer.read()
 
-    if "thumbnail_path" in st.session_state:
-        st.image(st.session_state.thumbnail_path, caption="Combined Thumbnail (1280x720)", use_container_width=True)
-        with open(st.session_state.thumbnail_path, "rb") as f:
-            st.download_button("💾 Download Thumbnail", f.read(), file_name="combined_thumbnail_1280x720.jpg", mime="image/jpeg")
+if "thumbnail_bytes" in st.session_state:
+    st.image(BytesIO(st.session_state.thumbnail_bytes), caption="Combined Thumbnail (1280x720)", use_container_width=True)
+    st.download_button(
+        "💾 Download Thumbnail", 
+        st.session_state.thumbnail_bytes, 
+        file_name="combined_thumbnail_1280x720.jpg", 
+        mime="image/jpeg"
+    )
