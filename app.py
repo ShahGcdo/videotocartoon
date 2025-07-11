@@ -87,7 +87,7 @@ style_sbs = st.selectbox("🎨 Apply Style to Side-by-Side", [
 ], key="style_sbs")
 
 if uploaded_files and len(uploaded_files) == 3:
-    if "sbs_final_video" not in st.session_state:
+    if "sbs_final_path" not in st.session_state:
         start_time = time.time()
         progress = st.progress(0)
         status = st.empty()
@@ -119,16 +119,13 @@ if uploaded_files and len(uploaded_files) == 3:
                 comp.write_videofile(output_raw, codec="libx264", audio_codec="aac", verbose=False, logger=None)
                 progress.progress(70)
 
-                # Watermark with FFmpeg
                 status.text("💧 Adding watermark...")
                 output_final = os.path.join(tmpdir, "sbs_final.mp4")
                 watermark = "drawtext=text='@USMIKASHMIRI':x=w-mod(t*240\\,w+tw):y=h-160:fontsize=40:fontcolor=white@0.6:shadowcolor=black:shadowx=2:shadowy=2"
                 cmd = f'ffmpeg -y -i "{output_raw}" -vf "{watermark}" -c:v libx264 -preset fast -crf 22 -pix_fmt yuv420p "{output_final}"'
                 os.system(cmd)
 
-                # Cache result in session_state
-                with open(output_final, "rb") as f:
-                    st.session_state.sbs_final_video = f.read()
+                st.session_state.sbs_final_path = output_final
 
                 end_time = time.time()
                 st.success(f"✅ Completed in {end_time - start_time:.2f} seconds")
@@ -140,9 +137,10 @@ if uploaded_files and len(uploaded_files) == 3:
         progress.empty()
         status.empty()
 
-    if "sbs_final_video" in st.session_state:
-        st.video(st.session_state.sbs_final_video)
-        st.download_button("💾 Download Side-by-Side", st.session_state.sbs_final_video, file_name="side_by_side.mp4", mime="video/mp4")
+    st.video(st.session_state.sbs_final_path)
+    with open(st.session_state.sbs_final_path, "rb") as f:
+        st.download_button("💾 Download Side-by-Side", f.read(), file_name="side_by_side.mp4", mime="video/mp4")
+
 
 
 # ---------- Feature 3 ----------
