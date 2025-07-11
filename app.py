@@ -262,7 +262,7 @@ if uploaded_thumb_files and len(uploaded_thumb_files) == 3:
             for i, img in enumerate(images):
                 combined.paste(img, (i * 640, 0))
 
-            st.image(combined, caption="Combined Thumbnail", use_column_width=True)
+            st.image(combined, caption="Combined Thumbnail", use_container_width=True)
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as out_thumb:
                 combined.save(out_thumb.name)
