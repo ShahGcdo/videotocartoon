@@ -219,7 +219,7 @@ elif uploaded_seq and len(uploaded_seq) != 3:
 
 # ========== Feature 4 ==========
 st.markdown("---")
-st.header("📸 Combine All Thumbnails into One (16:9)")
+st.header("📸 Combine All Thumbnails into One (1280x720)")
 
 uploaded_thumb_files = st.file_uploader(
     "📤 Upload 3 Videos (Cartoonified, Original, Styled)", 
@@ -254,21 +254,22 @@ if uploaded_thumb_files and len(uploaded_thumb_files) == 3:
                 clip = VideoFileClip(path)
                 frame = clip.get_frame(timestamps[idx])
                 img = Image.fromarray(frame)
-                img = img.resize((640, 360))  # 16:9 thumbnail
+                img = img.resize((426, 720))  # Resize to 1/3 width of 1280, full height
                 images.append(img)
                 clip.close()
 
-            combined = Image.new("RGB", (1920, 360))
+            # Create a new 1280x720 image
+            combined = Image.new("RGB", (1280, 720))
             for i, img in enumerate(images):
-                combined.paste(img, (i * 640, 0))
+                combined.paste(img, (i * 426, 0))  # Position side by side
 
-            st.image(combined, caption="Combined Thumbnail", use_container_width=True)
+            st.image(combined, caption="Combined Thumbnail (1280x720)", use_container_width=True)
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as out_thumb:
                 combined.save(out_thumb.name)
                 st.download_button(
                     "💾 Download Thumbnail", 
                     open(out_thumb.name, "rb").read(), 
-                    file_name="combined_thumbnail.jpg", 
+                    file_name="combined_thumbnail_1280x720.jpg", 
                     mime="image/jpeg"
                 )
