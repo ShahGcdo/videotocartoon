@@ -223,6 +223,7 @@ if uploaded_seq and len(uploaded_seq) == 3:
 elif uploaded_seq and len(uploaded_seq) != 3:
     st.warning("⚠️ Please upload exactly 3 videos.")
 
+from io import BytesIO
 # ---------- Feature 4 ----------
 st.markdown("---")
 st.header("📸 Combine All Thumbnails into One (1280x720)")
