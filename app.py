@@ -45,11 +45,10 @@ def get_transform_function(style_name):
 
     return lambda frame: frame
 
-# ---------- Watermark Function (with automatic even-dimension scaling) ----------
+# ---------- Watermark Function ----------
 def apply_watermark(input_path, output_path, text="@USMIKASHMIRI"):
-    # The 'scale' filter ensures the width and height are even
     watermark_filter = (
-        "scale=ceil(iw/2)*2:ceil(ih/2)*2,"  # Force dimensions to be even.
+        "scale=ceil(iw/2)*2:ceil(ih/2)*2,"
         f"drawtext=fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':"
         f"text='{text}':"
         "x=w-mod(t*240\\,w+tw):y=h-160:"
@@ -62,12 +61,7 @@ def apply_watermark(input_path, output_path, text="@USMIKASHMIRI"):
         "-c:v", "libx264", "-preset", "fast", "-crf", "22", "-pix_fmt", "yuv420p",
         output_path
     ]
-    try:
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        st.error("❌ FFmpeg watermarking failed. Check FFmpeg, font path, or file permissions.")
-        st.code(e.stderr.decode(), language="bash")
-        raise
+    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 # ========== FEATURE 1 ==========
 st.markdown("---")
@@ -104,7 +98,7 @@ if uploaded_file:
             st.download_button("💾 Download Before & After", f.read(), file_name="before_after.mp4")
     st.success(f"✅ Completed in {time.time() - start_time:.2f} seconds")
 
-# ========== FEATURE 2 ========== 
+# ========== FEATURE 2 ==========
 st.markdown("---")
 st.header("📱 Side by Side (3 Videos) with Watermark (Before & After Preview)")
 uploaded_files = st.file_uploader("📤 Upload 3 Videos", type=["mp4"], accept_multiple_files=True, key="sidebyside")
@@ -137,7 +131,6 @@ if uploaded_files and len(uploaded_files) == 3:
         styled_path_final = os.path.join(tmpdir, "styled_watermarked.mp4")
         apply_watermark(styled_path_raw, styled_path_final)
 
-        # Combine before/after
         combined = CompositeVideoClip([
             side_by_side_unstyled.set_position((0, 0)),
             VideoFileClip(styled_path_final).set_position((1920, 0))
@@ -151,52 +144,83 @@ if uploaded_files and len(uploaded_files) == 3:
             st.download_button("💾 Download Before & After", f.read(), file_name="side_by_side_before_after.mp4")
     st.success(f"✅ Completed in {time.time() - start_time:.2f} seconds")
 
-# ========== FEATURE 2 ========== 
+# ========== FEATURE 3 ==========
 st.markdown("---")
-st.header("📱 Side by Side (3 Videos) with Watermark (Before & After Preview)")
-uploaded_files = st.file_uploader("📤 Upload 3 Videos", type=["mp4"], accept_multiple_files=True, key="sidebyside")
-style_sbs = st.selectbox("🎨 Style for Side-by-Side", ["None", "🌸 Soft Pastel Anime-Like Style", "🎞️ Cinematic Warm Filter"], key="style_sbs")
+st.header("🕒 Play 3 Videos Sequentially with Watermark and Slight Fade (Before & After Preview)")
 
-if uploaded_files and len(uploaded_files) == 3:
+uploaded_seq = st.file_uploader(
+    "📤 Upload 3 Videos (for sequential playback)", 
+    type=["mp4"], 
+    accept_multiple_files=True, 
+    key="sequential"
+)
+
+style_seq = st.selectbox("🎨 Apply Style to Sequential Video", [
+    "None",
+    "🌸 Soft Pastel Anime-Like Style",
+    "🎞️ Cinematic Warm Filter"
+], key="style_sequential")
+
+if uploaded_seq and len(uploaded_seq) == 3:
     start_time = time.time()
     with tempfile.TemporaryDirectory() as tmpdir:
         paths = []
-        for i, file in enumerate(uploaded_files):
-            path = os.path.join(tmpdir, f"video{i}.mp4")
-            with open(path, "wb") as f:
-                f.write(file.read())
-            paths.append(path)
+        for i, f in enumerate(uploaded_seq):
+            p = os.path.join(tmpdir, f"seq{i}.mp4")
+            with open(p, "wb") as out:
+                out.write(f.read())
+            paths.append(p)
 
-        transform_func = get_transform_function(style_sbs)
+        transform_func = get_transform_function(style_seq)
         clips_styled = [VideoFileClip(p).fl_image(transform_func).resize(height=1080) for p in paths]
         clips_unstyled = [VideoFileClip(p).resize(height=1080) for p in paths]
 
-        duration = min(c.duration for c in clips_styled)
-        clips_styled = [c.subclip(0, duration).set_position((i * 640, 0)) for i, c in enumerate(clips_styled)]
-        clips_unstyled = [c.subclip(0, duration).set_position((i * 640, 0)) for i, c in enumerate(clips_unstyled)]
+        # Sequentially play styled with fading
+        final_clips = []
+        intro = CompositeVideoClip([
+            c.subclip(0, 1).set_position((i * 640, 0)) for i, c in enumerate(clips_styled)
+        ], size=(1920, 1080)).set_duration(1)
+        final_clips.append(intro)
 
-        side_by_side_styled = CompositeVideoClip(clips_styled, size=(1920, 1080)).set_duration(duration)
-        side_by_side_unstyled = CompositeVideoClip(clips_unstyled, size=(1920, 1080)).set_duration(duration)
+        for i in range(3):
+            dur = clips_styled[i].duration
+            row = []
+            for j in range(3):
+                if j == i:
+                    row.append(clips_styled[j].set_position((j * 640, 0)))
+                else:
+                    paused = clips_styled[j].to_ImageClip(t=1).set_duration(dur).set_position((j * 640, 0)).set_opacity(0.4)
+                    row.append(paused)
+            comp = CompositeVideoClip(row, size=(1920, 1080)).set_duration(dur)
+            final_clips.append(comp)
 
-        styled_path_raw = os.path.join(tmpdir, "styled_raw.mp4")
-        side_by_side_styled.write_videofile(styled_path_raw, codec="libx264", audio_codec="aac")
+        final_styled = concatenate_videoclips(final_clips)
+        styled_path_raw = os.path.join(tmpdir, "sequential_styled_raw.mp4")
+        final_styled.write_videofile(styled_path_raw, codec="libx264", audio_codec="aac")
 
-        styled_path_final = os.path.join(tmpdir, "styled_watermarked.mp4")
+        styled_path_final = os.path.join(tmpdir, "sequential_styled_final.mp4")
         apply_watermark(styled_path_raw, styled_path_final)
 
-        # Combine before/after
-        combined = CompositeVideoClip([
-            side_by_side_unstyled.set_position((0, 0)),
-            VideoFileClip(styled_path_final).set_position((1920, 0))
-        ], size=(3840, 1080)).set_duration(duration)
+        # Before and after preview
+        intro_unstyled = CompositeVideoClip([
+            c.subclip(0, 1).set_position((i * 640, 0)) for i, c in enumerate(clips_unstyled)
+        ], size=(1920, 1080)).set_duration(1)
 
-        final_ba_path = os.path.join(tmpdir, "sbs_before_after.mp4")
-        combined.write_videofile(final_ba_path, codec="libx264", audio_codec="aac")
+        after_preview = VideoFileClip(styled_path_final).subclip(0, 1).resize(height=1080).set_position((1920, 0))
+        combined_ba = CompositeVideoClip([intro_unstyled.set_position((0, 0)), after_preview], size=(3840, 1080)).set_duration(1)
 
-        st.video(final_ba_path)
-        with open(final_ba_path, "rb") as f:
-            st.download_button("💾 Download Before & After", f.read(), file_name="side_by_side_before_after.mp4")
-    st.success(f"✅ Completed in {time.time() - start_time:.2f} seconds")
+        ba_path = os.path.join(tmpdir, "sequential_before_after.mp4")
+        combined_ba.write_videofile(ba_path, codec="libx264", audio_codec="aac")
+
+        st.subheader("🎬 Before & After Preview")
+        st.video(ba_path)
+        with open(ba_path, "rb") as f:
+            st.download_button("💾 Download Before & After", f.read(), file_name="sequential_before_after.mp4")
+
+        st.subheader("▶️ Final Styled Sequential Video")
+        st.video(styled_path_final)
+        with open(styled_path_final, "rb") as f:
+            st.download_button("💾 Download Sequential Video", f.read(), file_name="sequential_output.mp4")
 
 # ========== FEATURE 4 ==========
 st.markdown("---")
