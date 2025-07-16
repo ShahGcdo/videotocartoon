@@ -224,7 +224,7 @@ style_sbs = st.selectbox(
 )
 
 rain_option_2 = st.selectbox(
-    "🌧️ Add Rain to Styled Video",
+    "🌧️ Add Rain to Styled Video (Feature 2)",
     ["None", "🌧️ Light Rain (Default)", "🌦️ Extra Light Rain", "🌤️ Ultra Light Rain"],
     key="rain_option_2"
 )
@@ -245,8 +245,8 @@ if uploaded_files and len(uploaded_files) == 3:
                 target_size = (426, 720)
                 transform_func = get_transform_function(style_sbs)
 
-                # Load raw and styled clips
-                raw_clips, styled_clips = [], []
+                raw_clips = []
+                styled_clips = []
                 min_duration = None
 
                 for path in paths:
@@ -260,6 +260,7 @@ if uploaded_files and len(uploaded_files) == 3:
                     raw_clips.append(clip_raw)
                     styled_clips.append(clip_styled)
 
+                # Trim both sets to same duration
                 raw_clips = [c.subclip(0, min_duration) for c in raw_clips]
                 styled_clips = [c.subclip(0, min_duration) for c in styled_clips]
 
@@ -284,12 +285,25 @@ if uploaded_files and len(uploaded_files) == 3:
                 final_output = os.path.join(tmpdir, "sbs_final.mp4")
                 apply_watermark(styled_temp, final_output)
 
+                # Save to session
                 with open(raw_output, "rb") as f:
                     st.session_state["sbs_raw_output"] = f.read()
                 with open(final_output, "rb") as f:
                     st.session_state["sbs_final_output"] = f.read()
 
             st.success("✅ Raw and Final videos generated successfully!")
+
+# ✅ SHOW VIDEO OUTPUTS
+if st.session_state["sbs_raw_output"]:
+    st.subheader("🎬 Raw Video (No Style, No Watermark)")
+    st.video(st.session_state["sbs_raw_output"])
+    st.download_button("⬇️ Download Raw", st.session_state["sbs_raw_output"], file_name="raw_unstyled.mp4")
+
+if st.session_state["sbs_final_output"]:
+    st.subheader("🌟 Final Video (Styled + Watermark)")
+    st.video(st.session_state["sbs_final_output"])
+    st.download_button("⬇️ Download Final", st.session_state["sbs_final_output"], file_name="styled_watermarked.mp4")
+
 
 
 # ========== FEATURE 3 (Sequential Playback with 1-Second Triple Intro) ==========
