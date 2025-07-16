@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 import shutil
 import random
-from io import BytesIO
+from io import BytesIO  # ✅ Add this import at the top of your file
 
 st.set_page_config(page_title="🎨 AI Video Effects App", layout="centered")
 st.title("🎨 AI Video Effects App")
@@ -82,32 +82,37 @@ def apply_watermark(input_path, output_path, text="@USMIKASHMIRI"):
         st.code(e.stderr.decode(), language="bash")
         raise
 
-# ---------- Rain Option Helper ----------
-def apply_rain_option(rain_choice):
-    if rain_choice == "🌧️ Light Rain (Default)":
-        return lambda frame: add_rain_effect(frame, 0.002)
-    elif rain_choice == "🌦️ Extra Light Rain":
-        return lambda frame: add_rain_effect(frame, 0.0008)
-    elif rain_choice == "☀️ Ultra Light Rain":
-        return lambda frame: add_rain_effect(frame, 0.0004)
-    else:
-        return lambda frame: frame
-
-# ---------- Global Rain Option UI ----------
-st.markdown("---")
-st.subheader("🌧️ Global Rain Effect (applies to Features 2 & 3)")
-global_rain_option = st.selectbox(
-    "Choose Rain Intensity for Feature 2 & 3:",
-    ["None", "🌧️ Light Rain (Default)", "🌦️ Extra Light Rain", "☀️ Ultra Light Rain"],
-    key="rain_feature2_3"
+# Add inside Feature 2
+rain_option_2 = st.selectbox(
+    "🌧️ Add Rain to Styled Video (Feature 2)",
+    ["None", "🌧️ Light Rain (Default)", "🌦️ Extra Light Rain", "🌤️ Ultra Light Rain"],
+    key="rain_option_2"
 )
 
-# ✅ You can now use this: transform_fn + rain_fn in Feature 2 and 3
-rain_fn = apply_rain_option(global_rain_option)
+def get_rain_function(option):
+    if option == "🌧️ Light Rain (Default)":
+        return lambda f: add_rain_effect(f, density=0.002)
+    elif option == "🌦️ Extra Light Rain":
+        return lambda f: add_rain_effect(f, density=0.0008)
+    elif option == "🌤️ Ultra Light Rain":
+        return lambda f: add_rain_effect(f, density=0.0004)
+    else:
+        return lambda f: f
 
-# ❗ Use `clip.fl_image(lambda f: rain_fn(transform_fn(f)))` in Feature 2 and 3
-# ❗ I will continue with full Feature 2 and 3 code update next
-# Let me know if you'd like that now or separately.
+rain_fn_2 = get_rain_function(rain_option_2)
+
+# Add inside Feature 3
+rain_option_3 = st.selectbox(
+    "🌧️ Add Rain to Styled Video (Feature 3)",
+    ["None", "🌧️ Light Rain (Default)", "🌦️ Extra Light Rain", "🌤️ Ultra Light Rain"],
+    key="rain_option_3"
+)
+
+rain_fn_3 = get_rain_function(rain_option_3)
+
+# Then update where clips are styled in Features 2 and 3 like:
+# clip_styled = clip_raw.fl_image(transform_fn) => clip_raw.fl_image(lambda f: rain_fn(transform_fn(f)))
+# Continue with the rest of your app logic...
 
 
 # ========== FEATURE 1 ==========
