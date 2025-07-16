@@ -61,6 +61,16 @@ def add_rain_effect(frame, density=0.002):
         cv2.line(frame, (x, y), (x, y + length), color, thickness)
     return frame
 
+def get_rain_function(option):
+    if option == "🌧️ Light Rain (Default)":
+        return lambda f: add_rain_effect(f, density=0.002)
+    elif option == "🌦️ Extra Light Rain":
+        return lambda f: add_rain_effect(f, density=0.0008)
+    elif option == "🌤️ Ultra Light Rain":
+        return lambda f: add_rain_effect(f, density=0.0004)
+    else:
+        return lambda f: f
+
 # ---------- Watermark ----------
 def apply_watermark(input_path, output_path, text="@USMIKASHMIRI"):
     watermark_filter = (
@@ -82,37 +92,10 @@ def apply_watermark(input_path, output_path, text="@USMIKASHMIRI"):
         st.code(e.stderr.decode(), language="bash")
         raise
 
-# Add inside Feature 2
-rain_option_2 = st.selectbox(
-    "🌧️ Add Rain to Styled Video (Feature 2)",
-    ["None", "🌧️ Light Rain (Default)", "🌦️ Extra Light Rain", "🌤️ Ultra Light Rain"],
-    key="rain_option_2"
-)
+# 🎯 Inject rain options INSIDE Feature 2 & 3 UI blocks (moved in the code below)
+# 🌧️ Add Rain to Feature 2 and 3
+# Use rain_option_2, rain_fn_2 and rain_option_3, rain_fn_3 where needed in processing pipeline.
 
-def get_rain_function(option):
-    if option == "🌧️ Light Rain (Default)":
-        return lambda f: add_rain_effect(f, density=0.002)
-    elif option == "🌦️ Extra Light Rain":
-        return lambda f: add_rain_effect(f, density=0.0008)
-    elif option == "🌤️ Ultra Light Rain":
-        return lambda f: add_rain_effect(f, density=0.0004)
-    else:
-        return lambda f: f
-
-rain_fn_2 = get_rain_function(rain_option_2)
-
-# Add inside Feature 3
-rain_option_3 = st.selectbox(
-    "🌧️ Add Rain to Styled Video (Feature 3)",
-    ["None", "🌧️ Light Rain (Default)", "🌦️ Extra Light Rain", "🌤️ Ultra Light Rain"],
-    key="rain_option_3"
-)
-
-rain_fn_3 = get_rain_function(rain_option_3)
-
-# Then update where clips are styled in Features 2 and 3 like:
-# clip_styled = clip_raw.fl_image(transform_fn) => clip_raw.fl_image(lambda f: rain_fn(transform_fn(f)))
-# Continue with the rest of your app logic...
 
 
 # ========== FEATURE 1 ==========
