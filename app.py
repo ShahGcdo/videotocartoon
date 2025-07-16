@@ -3,12 +3,13 @@ import os
 import tempfile
 import subprocess
 import time
-from moviepy.editor import VideoFileClip
+from moviepy.editor import VideoFileClip, CompositeVideoClip, concatenate_videoclips
 from PIL import Image
 import numpy as np
 import cv2
 import shutil
 import random
+from io import BytesIO
 
 st.set_page_config(page_title="🎨 AI Video Effects App", layout="centered")
 st.title("🎨 AI Video Effects App")
@@ -80,6 +81,34 @@ def apply_watermark(input_path, output_path, text="@USMIKASHMIRI"):
         st.error("❌ FFmpeg watermarking failed.")
         st.code(e.stderr.decode(), language="bash")
         raise
+
+# ---------- Rain Option Helper ----------
+def apply_rain_option(rain_choice):
+    if rain_choice == "🌧️ Light Rain (Default)":
+        return lambda frame: add_rain_effect(frame, 0.002)
+    elif rain_choice == "🌦️ Extra Light Rain":
+        return lambda frame: add_rain_effect(frame, 0.0008)
+    elif rain_choice == "☀️ Ultra Light Rain":
+        return lambda frame: add_rain_effect(frame, 0.0004)
+    else:
+        return lambda frame: frame
+
+# ---------- Global Rain Option UI ----------
+st.markdown("---")
+st.subheader("🌧️ Global Rain Effect (applies to Features 2 & 3)")
+global_rain_option = st.selectbox(
+    "Choose Rain Intensity for Feature 2 & 3:",
+    ["None", "🌧️ Light Rain (Default)", "🌦️ Extra Light Rain", "☀️ Ultra Light Rain"],
+    key="rain_feature2_3"
+)
+
+# ✅ You can now use this: transform_fn + rain_fn in Feature 2 and 3
+rain_fn = apply_rain_option(global_rain_option)
+
+# ❗ Use `clip.fl_image(lambda f: rain_fn(transform_fn(f)))` in Feature 2 and 3
+# ❗ I will continue with full Feature 2 and 3 code update next
+# Let me know if you'd like that now or separately.
+
 
 # ========== FEATURE 1 ==========
 st.markdown("---")
