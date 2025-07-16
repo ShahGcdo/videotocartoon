@@ -223,6 +223,14 @@ style_sbs = st.selectbox(
     key="style_sbs"
 )
 
+rain_option_2 = st.selectbox(
+    "🌧️ Add Rain to Styled Video",
+    ["None", "🌧️ Light Rain (Default)", "🌦️ Extra Light Rain", "🌤️ Ultra Light Rain"],
+    key="rain_option_2"
+)
+
+rain_fn_2 = get_rain_function(rain_option_2)
+
 if uploaded_files and len(uploaded_files) == 3:
     if st.button("🚀 Generate Side-by-Side Video"):
         with st.spinner("Processing..."):
@@ -237,14 +245,13 @@ if uploaded_files and len(uploaded_files) == 3:
                 target_size = (426, 720)
                 transform_func = get_transform_function(style_sbs)
 
-                # Load raw unstyled clips
-                raw_clips = []
-                styled_clips = []
+                # Load raw and styled clips
+                raw_clips, styled_clips = [], []
                 min_duration = None
 
                 for path in paths:
                     clip_raw = VideoFileClip(path).resize(target_size)
-                    clip_styled = clip_raw.fl_image(transform_func)
+                    clip_styled = clip_raw.fl_image(lambda f: rain_fn_2(transform_func(f)))
 
                     duration = clip_raw.duration
                     if min_duration is None or duration < min_duration:
@@ -253,11 +260,9 @@ if uploaded_files and len(uploaded_files) == 3:
                     raw_clips.append(clip_raw)
                     styled_clips.append(clip_styled)
 
-                # Trim both sets to shortest clip duration
                 raw_clips = [c.subclip(0, min_duration) for c in raw_clips]
                 styled_clips = [c.subclip(0, min_duration) for c in styled_clips]
 
-                # Create raw (unstyled) side-by-side
                 raw_combined = CompositeVideoClip([
                     raw_clips[0].set_position((0, 0)),
                     raw_clips[1].set_position((426, 0)),
@@ -267,7 +272,6 @@ if uploaded_files and len(uploaded_files) == 3:
                 raw_output = os.path.join(tmpdir, "sbs_raw.mp4")
                 raw_combined.write_videofile(raw_output, codec="libx264", audio_codec="aac")
 
-                # Create styled + watermark version
                 styled_combined = CompositeVideoClip([
                     styled_clips[0].set_position((0, 0)),
                     styled_clips[1].set_position((426, 0)),
@@ -280,7 +284,6 @@ if uploaded_files and len(uploaded_files) == 3:
                 final_output = os.path.join(tmpdir, "sbs_final.mp4")
                 apply_watermark(styled_temp, final_output)
 
-                # Save to session state
                 with open(raw_output, "rb") as f:
                     st.session_state["sbs_raw_output"] = f.read()
                 with open(final_output, "rb") as f:
@@ -288,16 +291,6 @@ if uploaded_files and len(uploaded_files) == 3:
 
             st.success("✅ Raw and Final videos generated successfully!")
 
-# Show raw and final output
-if st.session_state["sbs_raw_output"]:
-    st.subheader("🎬 Raw Video (No Style, No Watermark)")
-    st.video(st.session_state["sbs_raw_output"])
-    st.download_button("⬇️ Download Raw", st.session_state["sbs_raw_output"], file_name="raw_unstyled.mp4")
-
-if st.session_state["sbs_final_output"]:
-    st.subheader("🌟 Final Video (Styled + Watermark)")
-    st.video(st.session_state["sbs_final_output"])
-    st.download_button("⬇️ Download Final", st.session_state["sbs_final_output"], file_name="styled_watermarked.mp4")
 
 # ========== FEATURE 3 (Sequential Playback with 1-Second Triple Intro) ==========
 st.markdown("---")
