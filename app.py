@@ -3,27 +3,36 @@ import os
 import tempfile
 import subprocess
 import time
-from moviepy.editor import VideoFileClip, CompositeVideoClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip
 from PIL import Image
 import numpy as np
 import cv2
 import shutil
 import random
-from io import BytesIO  # ✅ Add this import at the top of your file
 
+# Page config
 st.set_page_config(page_title="🎨 AI Video Effects App", layout="centered")
 st.title("🎨 AI Video Effects App")
 
-# ---------- Style Filter Functions ----------
+# ---------- Auto Clean ----------
+def clean_output_dir(path="processed_videos", max_age_seconds=3600):
+    now = time.time()
+    if not os.path.exists(path):
+        os.makedirs(path)
+    for f in os.listdir(path):
+        fp = os.path.join(path, f)
+        if os.path.isfile(fp) and now - os.path.getmtime(fp) > max_age_seconds:
+            os.remove(fp)
+
+# ---------- Style Filters ----------
 def get_transform_function(style_name):
     if style_name == "🌸 Soft Pastel Anime-Like Style":
         def pastel_style(frame):
-            r, g, b = frame[:, :, 0], frame[:, :, 1], frame[:, :, 2]
-            r = np.clip(r * 1.08 + 20, 0, 255)
-            g = np.clip(g * 1.06 + 15, 0, 255)
-            b = np.clip(b * 1.15 + 25, 0, 255)
-            blurred = (frame.astype(np.float32) * 0.4 +
-                       cv2.GaussianBlur(frame, (7, 7), 0).astype(np.float32) * 0.6)
+            frame = frame.astype(np.float32)
+            frame[:, :, 0] = np.clip(frame[:, :, 0] * 1.08 + 20, 0, 255)
+            frame[:, :, 1] = np.clip(frame[:, :, 1] * 1.06 + 15, 0, 255)
+            frame[:, :, 2] = np.clip(frame[:, :, 2] * 1.15 + 25, 0, 255)
+            blurred = cv2.GaussianBlur(frame, (7, 7), 0)
             tint = np.array([10, -5, 15], dtype=np.float32)
             result = np.clip(blurred + tint, 0, 255).astype(np.uint8)
             return result
@@ -35,19 +44,18 @@ def get_transform_function(style_name):
             r = np.clip(r * 1.15 + 15, 0, 255)
             g = np.clip(g * 1.08 + 8, 0, 255)
             b = np.clip(b * 0.95, 0, 255)
-            rows, cols = r.shape
+            frame = np.stack([r, g, b], axis=2).astype(np.float32)
+            rows, cols = frame.shape[:2]
             Y, X = np.ogrid[:rows, :cols]
-            center = (rows / 2, cols / 2)
-            vignette = 1 - ((X - center[1])**2 + (Y - center[0])**2) / (1.5 * center[0] * center[1])
+            vignette = 1 - ((X - cols/2)**2 + (Y - rows/2)**2) / (1.5 * (cols/2) * (rows/2))
             vignette = np.clip(vignette, 0.3, 1)[..., np.newaxis]
-            result = np.stack([r, g, b], axis=2).astype(np.float32) * vignette
             grain = np.random.normal(0, 3, frame.shape).astype(np.float32)
-            return np.clip(result + grain, 0, 255).astype(np.uint8)
+            return np.clip(frame * vignette + grain, 0, 255).astype(np.uint8)
         return warm_style
 
-    return lambda frame: frame
+    return lambda f: f
 
-# ---------- Rain Overlay ----------
+# ---------- Rain Effect ----------
 def add_rain_effect(frame, density=0.002):
     frame = frame.copy()
     h, w, _ = frame.shape
@@ -56,13 +64,11 @@ def add_rain_effect(frame, density=0.002):
         x = random.randint(0, w - 1)
         y = random.randint(0, h - 20)
         length = random.randint(10, 20)
-        thickness = 1
-        color = (200, 200, 255)
-        cv2.line(frame, (x, y), (x, y + length), color, thickness)
+        cv2.line(frame, (x, y), (x, y + length), (200, 200, 255), 1)
     return frame
 
 def get_rain_function(option):
-    if option == "🌧️ Light Rain (Default)":
+    if option == "☂️ Light Rain (Default)":
         return lambda f: add_rain_effect(f, density=0.002)
     elif option == "🌦️ Extra Light Rain":
         return lambda f: add_rain_effect(f, density=0.0008)
@@ -74,29 +80,71 @@ def get_rain_function(option):
 # ---------- Watermark ----------
 def apply_watermark(input_path, output_path, text="@USMIKASHMIRI"):
     watermark_filter = (
-        "scale=ceil(iw/2)*2:ceil(ih/2)*2," +
-        f"drawtext=fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':" +
-        f"text='{text}':x=w-mod(t*240\\,w+tw):y=h-160:" +
+        "scale=ceil(iw/2)*2:ceil(ih/2)*2,"
+        f"drawtext=fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':"
+        f"text='{text}':x=w-mod(t*240\,w+tw):y=h-160:"
         "fontsize=40:fontcolor=white@0.6:shadowcolor=black:shadowx=2:shadowy=2"
     )
     cmd = [
         "ffmpeg", "-y", "-i", input_path,
         "-vf", watermark_filter,
         "-c:v", "libx264", "-preset", "fast", "-crf", "22", "-pix_fmt", "yuv420p",
+        "-threads", "4",
         output_path
     ]
-    try:
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        st.error("❌ FFmpeg watermarking failed.")
-        st.code(e.stderr.decode(), language="bash")
-        raise
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-# 🎯 Inject rain options INSIDE Feature 2 & 3 UI blocks (moved in the code below)
-# 🌧️ Add Rain to Feature 2 and 3
-# Use rain_option_2, rain_fn_2 and rain_option_3, rain_fn_3 where needed in processing pipeline.
+# ---------- Video Processing ----------
+def process_video(input_path, transform_func, rain_func, output_path):
+    clip = VideoFileClip(input_path)
+    fps = clip.fps
+    width, height = clip.size
+    frames = []
 
+    for frame in clip.iter_frames(fps=fps, dtype="uint8"):
+        frame = cv2.resize(frame, (width, height))
+        styled = transform_func(frame)
+        rained = rain_func(styled)
+        frames.append(rained)
 
+    temp_output = os.path.join(tempfile.gettempdir(), "temp_output.mp4")
+    height = int(height)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(temp_output, fourcc, fps, (width, height))
+
+    for f in frames:
+        out.write(f)
+    out.release()
+    clip.close()
+
+    apply_watermark(temp_output, output_path)
+    os.remove(temp_output)
+
+# ---------- Streamlit UI ----------
+clean_output_dir()
+style = st.selectbox("🎨 Choose a Style Filter", [
+    "None", "🌸 Soft Pastel Anime-Like Style", "🎮 Cinematic Warm Filter"
+])
+rain = st.selectbox("🌧️ Add Rain Effect", [
+    "None", "☂️ Light Rain (Default)", "🌦️ Extra Light Rain", "🌤️ Ultra Light Rain"
+])
+
+uploaded_file = st.file_uploader("📤 Upload Your Video", type=["mp4", "mov"])
+if uploaded_file:
+    input_path = os.path.join(tempfile.gettempdir(), uploaded_file.name)
+    with open(input_path, "wb") as f:
+        f.write(uploaded_file.read())
+
+    output_path = os.path.join("processed_videos", f"processed_{int(time.time())}.mp4")
+
+    with st.spinner("⏳ Processing your video..."):
+        transform_func = get_transform_function(style)
+        rain_func = get_rain_function(rain)
+        process_video(input_path, transform_func, rain_func, output_path)
+
+    st.success("✅ Done! Here is your processed video:")
+    st.video(output_path)
+    st.download_button("📥 Download Processed Video", data=open(output_path, "rb"), file_name="styled_output.mp4")
 
 # ========== FEATURE 1 ==========
 st.markdown("---")
